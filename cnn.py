@@ -3,6 +3,7 @@ from keras.layers import Convolution2D, MaxPooling2D
 from keras.layers import Activation, Dropout, Flatten, Dense
 from keras.utils.np_utils import to_categorical
 from keras.optimizers import SGD
+from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
 
 from util import load_data
 
@@ -53,9 +54,25 @@ model.compile(loss='categorical_crossentropy',
 				optimizer='rmsprop',
 				metrics=['accuracy'])
 
+print('augmenting data')
+# this will do preprocessing and realtime data augmentation
+train_datagen = ImageDataGenerator(
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True,
+    vertical_flip=False)  # randomly flip images
+
+train_datagen.fit(X_train)
+
 model.fit(X_train, y_train,
 				nb_epoch=nb_epoch,
 				batch_size=batch_size,
 				validation_data=(X_val, y_val))
+
+model.fit_generator(train_datagen.flow(X_train, y_train,
+	batch_size=batch_size),
+    samples_per_epoch=X_train.shape[0],
+    nb_epoch=nb_epoch,
+	validation_data=(X_val, y_val))
 
 model.save_weights('weights.h5')
