@@ -34,14 +34,14 @@ y_test = to_categorical(y_test - 1, nb_classes=nb_classes)
 # build ConvNet
 model = Sequential()
 
-model.add(Convolution2D(32, 3, 3, input_shape=(img_width, img_height, img_channels)))
+model.add(Convolution2D(32, 3, 3, border_mode='same', input_shape=(img_width, img_height, img_channels)))
 model.add(Activation('relu'))
-model.add(Convolution2D(32, 3, 3, input_shape=(img_width, img_height, img_channels)))
+model.add(Convolution2D(32, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Dropout(0.25))
 
-model.add(Convolution2D(64, 3, 3))
+model.add(Convolution2D(64, 3, 3, border_mode='same'))
 model.add(Activation('relu'))
 model.add(Convolution2D(64, 3, 3))
 model.add(Activation('relu'))
