@@ -71,19 +71,14 @@ def swap(K) :
 ##      main starts here  ##
  
 path=os.getcwd()
-dirList=os.listdir(path+"/INPUT")
+dirList=os.listdir(path+"/train")
 
 for k_nick in [3, 5, 10, 25]:
   newpath = path+"/OUTPUT_"+str(k_nick) 
   if not os.path.exists(newpath):
     os.makedirs(newpath)
 
-  gg = 0
   for infile in dirList:
-      print(gg)
-      gg=gg+1
-      if gg>10 :
-	break
       s_time=time.time()
       im=Image.open(path+"/INPUT/"+infile)
       k=k_nick
