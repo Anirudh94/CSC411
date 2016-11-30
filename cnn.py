@@ -59,7 +59,7 @@ model.add(Activation('softmax'))
 
 # let's train the model using SGD + momentum (how original).
 lrate = 0.005
-sgd = SGD(lr=lrate, decay=1e-6, momentum=0.9, nesterov=True)
+sgd = SGD(lr=lrate, decay=1e-4, momentum=0.9, nesterov=True)
 model.compile(loss='categorical_crossentropy',
 				optimizer=sgd,
 				metrics=['accuracy'])
@@ -100,12 +100,23 @@ model.fit_generator(datagen.flow(X_train, y_train,
 		validation_data=(X_test, y_test))
 
 '''
-pred = model.predict(X_val, batch_size=32, verbose=1)
-pred = np.argmax(pred, axis=1) + 1
+
+pred = model.predict(X_test, batch_size=32, verbose=1)
+pred_s = np.argmax(pred, axis=1) + 1
+y_test_s = np.argmax(y_test, axis=1) + 1
+
 
 for i in range(1,9):	
-	print(np.sum(pred == i))
+	print(np.sum(pred_s == i))
 
-writeCSV('submission.csv', pred)
+for i in range(1,9):	
+	print(np.sum(y_test_s == i))
+
+for i in range(1,9):	
+	print((np.where(np.logical_and((y_test_s - pred_s)!= 0 ,y_test_s ==i))[0]+6000).shape)
+	print((np.where(np.logical_and((y_test_s - pred_s)!= 0 ,pred_s ==i))[0]+6000).shape)
+	print(np.where(np.logical_and((y_test_s - pred_s)!= 0 ,y_test_s ==i))[0]+6000)
+#writeCSV('submission.csv', pred)
 '''
+
 model.save_weights('weights.h5')

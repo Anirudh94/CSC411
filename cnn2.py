@@ -1,97 +1,121 @@
+import os
+import h5py
+import numpy as np
+from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
-from keras.layers import Convolution2D, MaxPooling2D
+from keras.layers import Convolution2D, MaxPooling2D, ZeroPadding2D
 from keras.layers import Activation, Dropout, Flatten, Dense
-from keras.utils.np_utils import to_categorical
-from keras.optimizers import SGD
-from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
-from keras.constraints import maxnorm
-from keras import backend as K
-K.set_image_dim_ordering('tf')
 
-from util import load_data
-
+# path to the model weights file.
+weights_path = '../keras/examples/vgg16_weights.h5'
+top_model_weights_path = 'bottleneck_fc_model.h5'
 # dimensions of our images.
-img_width, img_height, img_channels = 128, 128, 3
-nb_classes = 8
-nb_epoch = 25
-batch_size = 32
+img_width, img_height = 150, 150
 
-# load training data
-X, y = load_data('./train', 'train.csv')
+train_data_dir = 'data/train'
+validation_data_dir = 'data/validation'
+nb_train_samples = 2000
+nb_validation_samples = 800
+nb_epoch = 50
 
-X_train = X
-y_train = y
 
-X_val = X[6500:]
-y_val = y[6500:]
+def save_bottlebeck_features():
+    datagen = ImageDataGenerator(rescale=1./255)
 
-# normalize inputs from 0-255 to 0.0-1.0
-'''
-X_train = X_train.astype('float32')
-X_val = X_val.astype('float32')
-X_train = X_train / 255.0
-X_val = X_val / 255.0
-'''
+    # build the VGG16 network
+    model = Sequential()
+    model.add(ZeroPadding2D((1, 1), input_shape=(3, img_width, img_height)))
 
-# convert target data to one-hot
-y_train = to_categorical(y_train - 1, nb_classes=nb_classes)
-y_val = to_categorical(y_val - 1, nb_classes=nb_classes)
+    model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_1'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_2'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
-# build ConvNet
-model = Sequential()
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_1'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_2'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
-model.add(Convolution2D(32, 3, 3, input_shape=(img_width, img_height, img_channels), border_mode='same'))
-model.add(Activation('relu'))
-model.add(Convolution2D(32, 3, 3, border_mode='same'))
-model.add(Activation('relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_1'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_2'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_3'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
-model.add(Convolution2D(64, 3, 3, border_mode='same'))
-model.add(Activation('relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_1'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_2'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_3'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
-model.add(Convolution2D(128, 3, 3, border_mode='same'))
-model.add(Activation('relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_1'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_2'))
+    model.add(ZeroPadding2D((1, 1)))
+    model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_3'))
+    model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
-model.add(Flatten())
-model.add(Dense(128, activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(nb_classes))
-model.add(Activation('softmax'))
+    # load the weights of the VGG16 networks
+    # (trained on ImageNet, won the ILSVRC competition in 2014)
+    # note: when there is a complete match between your model definition
+    # and your weight savefile, you can simply call model.load_weights(filename)
+    assert os.path.exists(weights_path), 'Model weights not found (see "weights_path" variable in script).'
+    f = h5py.File(weights_path)
+    for k in range(f.attrs['nb_layers']):
+        if k >= len(model.layers):
+            # we don't look at the last (fully-connected) layers in the savefile
+            break
+        g = f['layer_{}'.format(k)]
+        weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
+        model.layers[k].set_weights(weights)
+    f.close()
+    print('Model loaded.')
 
-# let's train the model using SGD + momentum (how original).
-lrate = 0.01
-decay = float(lrate)/nb_epoch;
-sgd = SGD(lr=lrate, decay=decay, momentum=0.2, nesterov=False)
-model.compile(loss='categorical_crossentropy',
-				optimizer=sgd,
-				metrics=['accuracy'])
+    generator = datagen.flow_from_directory(
+            train_data_dir,
+            target_size=(img_width, img_height),
+            batch_size=32,
+            class_mode=None,
+            shuffle=False)
+    bottleneck_features_train = model.predict_generator(generator, nb_train_samples)
+    np.save(open('bottleneck_features_train.npy', 'w'), bottleneck_features_train)
 
-print(model.summary())
+    generator = datagen.flow_from_directory(
+            validation_data_dir,
+            target_size=(img_width, img_height),
+            batch_size=32,
+            class_mode=None,
+            shuffle=False)
+    bottleneck_features_validation = model.predict_generator(generator, nb_validation_samples)
+    np.save(open('bottleneck_features_validation.npy', 'w'), bottleneck_features_validation)
 
-model.fit(X_train, y_train,
-	batch_size=batch_size,
-    nb_epoch=nb_epoch)
 
-'''
-# this will do preprocessing and realtime data augmentation
-train_datagen = ImageDataGenerator(
-        rotation_range=5,
-        width_shift_range=0.2,
-        height_shift_range=0.2,
-        #rescale=1./255,
-        shear_range=0.2,
-        zoom_range=0.2,
-        horizontal_flip=True,
-        fill_mode='nearest')
+def train_top_model():
+    train_data = np.load(open('bottleneck_features_train.npy'))
+    train_labels = np.array([0] * (nb_train_samples / 2) + [1] * (nb_train_samples / 2))
 
-train_datagen.fit(X_train)
+    validation_data = np.load(open('bottleneck_features_validation.npy'))
+    validation_labels = np.array([0] * (nb_validation_samples / 2) + [1] * (nb_validation_samples / 2))
 
-model.fit_generator(train_datagen.flow(X_train, y_train,
-	batch_size=batch_size),
-    samples_per_epoch=X_train.shape[0],
-    nb_epoch=nb_epoch,
-	validation_data=(X_val, y_val))
-'''
-model.save_weights('weights.h5')
+    model = Sequential()
+    model.add(Flatten(input_shape=train_data.shape[1:]))
+    model.add(Dense(256, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(1, activation='sigmoid'))
+
+    model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
+
+    model.fit(train_data, train_labels,
+              nb_epoch=nb_epoch, batch_size=32,
+              validation_data=(validation_data, validation_labels))
+    model.save_weights(top_model_weights_path)
+
+
+save_bottlebeck_features()
+train_top_model()
