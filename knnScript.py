@@ -71,7 +71,7 @@ def swap(K) :
 ##      main starts here  ##
  
 path=os.getcwd()
-dirList=os.listdir(path+"/train")
+dirList=os.listdir(path+"/INPUT")
 
 for k_nick in [3, 5, 10, 25]:
   newpath = path+"/OUTPUT_"+str(k_nick) 
@@ -128,9 +128,9 @@ for k_nick in [3, 5, 10, 25]:
       i=0
       while i < k:
 	  c=[0,0,0]
-	  c[0]=k
-	  c[1]=0
-	  c[2]=0
+	  c[0]=CLUSTER_MEAN[i][0]
+	  c[1]=CLUSTER_MEAN[i][1]
+	  c[2]=CLUSTER_MEAN[i][0]
 	  color_arr.append(c)
 	  i+=1
       for i in range(len(CLUSTER_NO)):
