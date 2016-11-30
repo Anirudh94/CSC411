@@ -12,7 +12,7 @@ import numpy as np
 # dimensions of our images.
 img_width, img_height, img_channels = 128, 128, 3
 nb_classes = 8
-nb_epoch = 100
+nb_epoch = 15
 batch_size = 32
 
 # load training data
@@ -33,7 +33,7 @@ y_test = to_categorical(y_test - 1, nb_classes=nb_classes)
 # build ConvNet
 model = Sequential()
 
-model.add(AveragePooling2D(pool_size=(2, 2), input_shape=(img_width, img_height, img_channels)))
+model.add(AveragePooling2D(pool_size=(2, 2), input_shape=(img_width, img_height, X_train.shape[3])))
 model.add(Convolution2D(32, 3, 3))
 
 #model.add(Convolution2D(32, 3, 3, input_shape=(img_width, img_height, X_train.shape[3])))
@@ -58,7 +58,8 @@ model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 
 # let's train the model using SGD + momentum (how original).
-sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=False)
+lrate = 0.005
+sgd = SGD(lr=lrate, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='categorical_crossentropy',
 				optimizer=sgd,
 				metrics=['accuracy'])
@@ -75,11 +76,17 @@ model.fit(X_train, y_train,
             nb_epoch=nb_epoch,
             batch_size=batch_size,
             validation_data=(X_test, y_test))
-datagen = ImageDataGenerator(
-        shear_range=0.1,
-        zoom_range=0.1,
-        horizontal_flip=True)
+'''
 
+model.load_weights('weights.h5')
+
+datagen = ImageDataGenerator(
+        rotation_range=20,
+        shear_range=0.2,
+        zoom_range=0.2,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        horizontal_flip=True)
 
 # compute quantities required for featurewise normalization
 # (std, mean, and principal components if ZCA whitening is applied)
@@ -91,9 +98,8 @@ model.fit_generator(datagen.flow(X_train, y_train,
 		samples_per_epoch=X_train.shape[0],
 		nb_epoch=nb_epoch,
 		validation_data=(X_test, y_test))
-'''
-model.load_weights('weights.h5')
 
+'''
 pred = model.predict(X_val, batch_size=32, verbose=1)
 pred = np.argmax(pred, axis=1) + 1
 
@@ -101,5 +107,5 @@ for i in range(1,9):
 	print(np.sum(pred == i))
 
 writeCSV('submission.csv', pred)
-
-#model.save_weights('weights.h5')
+'''
+model.save_weights('weights.h5')
