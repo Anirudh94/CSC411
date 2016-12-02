@@ -6,18 +6,24 @@ from keras.models import Sequential
 from keras.layers import Convolution2D, MaxPooling2D, ZeroPadding2D
 from keras.layers import Activation, Dropout, Flatten, Dense
 
+from keras.utils.np_utils import to_categorical
+from keras.optimizers import SGD
+from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
+from util import load_data, load_X, writeCSV
+import numpy as np
+
 # path to the model weights file.
-weights_path = '../keras/examples/vgg16_weights.h5'
+weights_path = 'vgg16_weights.h5'
 top_model_weights_path = 'bottleneck_fc_model.h5'
 # dimensions of our images.
-img_width, img_height = 150, 150
+img_width, img_height = 128, 128
 
-train_data_dir = 'data/train'
-validation_data_dir = 'data/validation'
-nb_train_samples = 2000
-nb_validation_samples = 800
+train_data_dir = 'train'
+validation_data_dir = 'validation'
+nb_train_samples = 6000
+nb_validation_samples = 1000
 nb_epoch = 50
-
+nb_classes = 8
 
 def save_bottlebeck_features():
     datagen = ImageDataGenerator(rescale=1./255)
@@ -77,39 +83,47 @@ def save_bottlebeck_features():
     f.close()
     print('Model loaded.')
 
-    generator = datagen.flow_from_directory(
-            train_data_dir,
-            target_size=(img_width, img_height),
-            batch_size=32,
-            class_mode=None,
-            shuffle=False)
+
+    # load training data
+    X, y = load_data('./train', 'train.csv')
+
+    X_train = X[:nb_train_samples]
+    y_train = y[:nb_train_samples]
+    X_test = X[nb_train_samples:]
+    y_test = y[nb_train_samples:]
+
+    # convert data to one-hot
+    y_train = to_categorical(y_train - 1, nb_classes=nb_classes)
+    y_test = to_categorical(y_test - 1, nb_classes=nb_classes)
+
+    datagen.fit(X_train)
+    generator = datagen.flow(X_train, y_train,
+		batch_size=batch_size, shuffle=False)
     bottleneck_features_train = model.predict_generator(generator, nb_train_samples)
     np.save(open('bottleneck_features_train.npy', 'w'), bottleneck_features_train)
-
-    generator = datagen.flow_from_directory(
-            validation_data_dir,
-            target_size=(img_width, img_height),
-            batch_size=32,
-            class_mode=None,
-            shuffle=False)
+    
+    datagen.fit(X_test)
+    generator = datagen.flow(X_test, y_test,
+		batch_size=batch_size, shuffle=False)
     bottleneck_features_validation = model.predict_generator(generator, nb_validation_samples)
     np.save(open('bottleneck_features_validation.npy', 'w'), bottleneck_features_validation)
 
-
 def train_top_model():
-    train_data = np.load(open('bottleneck_features_train.npy'))
-    train_labels = np.array([0] * (nb_train_samples / 2) + [1] * (nb_train_samples / 2))
+    X, y = load_data('./train', 'train.csv')
 
+    train_data = np.load(open('bottleneck_features_train.npy'))
+    train_labels = y[:nb_train_samples]
+    
     validation_data = np.load(open('bottleneck_features_validation.npy'))
-    validation_labels = np.array([0] * (nb_validation_samples / 2) + [1] * (nb_validation_samples / 2))
+    validation_labels = y[nb_train_samples:]
 
     model = Sequential()
     model.add(Flatten(input_shape=train_data.shape[1:]))
     model.add(Dense(256, activation='relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(1, activation='sigmoid'))
+    model.add(Dense(nb_classes, activation='softmax'))
 
-    model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
 
     model.fit(train_data, train_labels,
               nb_epoch=nb_epoch, batch_size=32,
