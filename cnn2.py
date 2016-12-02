@@ -88,10 +88,10 @@ def save_bottlebeck_features():
     # load training data
     X, y = load_data('./train', 'train.csv')
 
-    X_train = X[:50]
-    y_train = y[:50]
-    X_test = X[50:10]
-    y_test = y[50:60]
+    X_train = X[:nb_train_samples]
+    y_train = y[:nb_train_samples]
+    X_test = X[nb_train_samples:]
+    y_test = y[nb_train_samples:]
 
     # convert data to one-hot
     y_train = to_categorical(y_train - 1, nb_classes=nb_classes)

@@ -13,7 +13,7 @@ import numpy as np
 # dimensions of our images.
 img_width, img_height, img_channels = 128, 128, 3
 nb_classes = 8
-nb_epoch = 10
+nb_epoch = 15
 batch_size = 32
 
 # load training data
@@ -22,10 +22,10 @@ X_val = load_X('./val')
 print('X_val.shape')
 print(X_val.shape)
 
-X_train = X[:60]
-y_train = y[:60]
-X_test = X[60:70]
-y_test = y[60:70]
+X_train = X[:6000]
+y_train = y[:6000]
+X_test = X[6000:]
+y_test = y[6000:]
 
 # convert data to one-hot
 y_train = to_categorical(y_train - 1, nb_classes=nb_classes)
