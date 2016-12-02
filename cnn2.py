@@ -5,6 +5,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers import Convolution2D, MaxPooling2D, ZeroPadding2D
 from keras.layers import Activation, Dropout, Flatten, Dense
+from keras.callbacks import TensorBoard
 
 from keras.utils.np_utils import to_categorical
 from keras.optimizers import SGD
@@ -87,10 +88,10 @@ def save_bottlebeck_features():
     # load training data
     X, y = load_data('./train', 'train.csv')
 
-    X_train = X[:nb_train_samples]
-    y_train = y[:nb_train_samples]
-    X_test = X[nb_train_samples:]
-    y_test = y[nb_train_samples:]
+    X_train = X[:50]
+    y_train = y[:50]
+    X_test = X[50:10]
+    y_test = y[50:60]
 
     # convert data to one-hot
     y_train = to_categorical(y_train - 1, nb_classes=nb_classes)
@@ -125,9 +126,13 @@ def train_top_model():
 
     model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
 
+    tb = TensorBoard(log_dir='./log')
+
+
     model.fit(train_data, train_labels,
               nb_epoch=nb_epoch, batch_size=32,
-              validation_data=(validation_data, validation_labels))
+              validation_data=(validation_data, validation_labels),
+              callbacl=[tb])
     model.save_weights(top_model_weights_path)
 
 
