@@ -5,12 +5,16 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers import Convolution2D, MaxPooling2D, ZeroPadding2D
 from keras.layers import Activation, Dropout, Flatten, Dense
-from keras.callbacks import TensorBoard
 
 from keras.utils.np_utils import to_categorical
 from keras.optimizers import SGD
 from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
 from util import load_data, load_X, writeCSV
+from sklearn.utils import shuffle
+
+from keras import backend as K
+K.set_image_dim_ordering('th')
+
 import numpy as np
 
 # path to the model weights file.
@@ -23,7 +27,8 @@ train_data_dir = 'train'
 validation_data_dir = 'validation'
 nb_train_samples = 6000
 nb_validation_samples = 1000
-nb_epoch = 50
+nb_epoch = 5
+
 nb_classes = 8
 
 def save_bottlebeck_features():
@@ -87,6 +92,8 @@ def save_bottlebeck_features():
 
     # load training data
     X, y = load_data('./train', 'train.csv')
+    X, y = shuffle(X, y, random_state=0)
+    X = np.transpose(X, (0, 3, 1, 2))
 
     X_train = X[:nb_train_samples]
     y_train = y[:nb_train_samples]
@@ -99,40 +106,41 @@ def save_bottlebeck_features():
 
     datagen.fit(X_train)
     generator = datagen.flow(X_train, y_train,
-		batch_size=batch_size, shuffle=False)
+		batch_size=32, shuffle=False)
     bottleneck_features_train = model.predict_generator(generator, nb_train_samples)
     np.save(open('bottleneck_features_train.npy', 'w'), bottleneck_features_train)
     
     datagen.fit(X_test)
     generator = datagen.flow(X_test, y_test,
-		batch_size=batch_size, shuffle=False)
+		batch_size=32, shuffle=False)
     bottleneck_features_validation = model.predict_generator(generator, nb_validation_samples)
     np.save(open('bottleneck_features_validation.npy', 'w'), bottleneck_features_validation)
 
 def train_top_model():
     X, y = load_data('./train', 'train.csv')
+    X, y = shuffle(X, y, random_state=0)
 
     train_data = np.load(open('bottleneck_features_train.npy'))
     train_labels = y[:nb_train_samples]
-    
+   
     validation_data = np.load(open('bottleneck_features_validation.npy'))
     validation_labels = y[nb_train_samples:]
 
+    # convert data to one-hot
+    train_labels = to_categorical(train_labels - 1, nb_classes=nb_classes)
+    validation_labels = to_categorical(validation_labels - 1, nb_classes=nb_classes)
+ 
     model = Sequential()
     model.add(Flatten(input_shape=train_data.shape[1:]))
-    model.add(Dense(256, activation='relu'))
+    model.add(Dense(512, activation='relu'))
     model.add(Dropout(0.5))
     model.add(Dense(nb_classes, activation='softmax'))
 
     model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
 
-    tb = TensorBoard(log_dir='./log')
-
-
     model.fit(train_data, train_labels,
               nb_epoch=nb_epoch, batch_size=32,
-              validation_data=(validation_data, validation_labels),
-              callbacl=[tb])
+              validation_data=(validation_data, validation_labels))
     model.save_weights(top_model_weights_path)
 
 

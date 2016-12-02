@@ -31,7 +31,7 @@ def load_data(x_dir, y_csv_file):
 	return X_train, y_train
 
 def writeCSV(csvfile, pred):
-	pred = np.concatenate((pred, np.zeros((2000,), dtype=np.int)), axis=0)
+	pred = np.concatenate((pred, np.ones((2000,), dtype=np.int)), axis=0)
 	print(pred.shape)
 	indices = np.array(range(1,pred.shape[0] + 1))
 	pred = np.column_stack((indices,pred,))
@@ -40,6 +40,17 @@ def writeCSV(csvfile, pred):
 	with open(csvfile, "w") as output:
 		writer = csv.writer(output, lineterminator='\n')
 		writer.writerows(pred)
+
+def writeCSV2(csvfile, pred):
+	print(pred.shape)
+	indices = np.array(range(1+970, pred.shape[0] + 1 + 970))
+	pred = np.column_stack((indices,pred,))
+	print('shape')
+	print(pred.shape)
+	with open(csvfile, "w") as output:
+		writer = csv.writer(output, lineterminator='\n')
+		writer.writerows(pred)
+
 
 def compressImg(x_dir, size=7000, test=0):
     prefix = ''
